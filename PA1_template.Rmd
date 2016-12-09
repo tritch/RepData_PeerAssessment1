@@ -9,9 +9,8 @@ output:
 ### Loading and preprocessing the data
 
 We begin by loading libraries, clearing the workspace, and unzipping the `activity.zip` dataset, which includes the comma-separated `activity.csv` file, which contains the raw dataset for this analysis.
-```{r setup, include=F, echo=T}
+```{r setup, echo=T, message=F, warning=F}
 library(dplyr); library(mice); library(lattice); library(moments); library(lambda.tools)
-rm(list=ls()[!grepl("micedActivity", ls())])  # clear workspace
 knitr::opts_chunk$set(cache=TRUE)
 # Set working directory (edit this path as desired), fetch data to it
 dataDirName <- "C:/Users/tom/Documents/DataScience/course 5/wk2/RepData_PeerAssessment1"
@@ -21,7 +20,7 @@ if( !file.exists("./activity.csv") ) unzip("./activity.zip", overwrite = T, exdi
 activity <- read.csv("activity.csv", header = T, sep = ",")
 ```
 The activity dataset consists of `r dim(activity)[1]` observations across `r dim(activity)[2]` variables.  We observe some missing values in the `steps` field, denoted as NAs in the summary below.  These will be discussed later in the report.  For now we will ignore the missing values.
-```{r summary, echo=F}
+```{r summary, echo=T}
 str(activity)
 ```
 
@@ -52,7 +51,6 @@ cat("Skewness:", round(skewness(sumSteps$sum),2))
 ```{r stats II, fig.align='center', fig.width=9, fig.height=5, include=F, echo=T}
 pdf(file="./figure/histogram - Total Steps per Day.pdf", width=7, height=5)
 hst(); dev.off()  # pdf it
-md
 ```
 A negative skewness value close to zero indicates a slight left-skew;  symmetric distributions have zero skew.  We note the very large proportion at the far left of the plot.
 
@@ -102,18 +100,22 @@ data.frame(`lower bound`=NAspan$min, `upper bound`=NAspan$max)
 
 The author chose not to use simpler methods for imputing missing values, such as substituting column means or medians.  Instead, we will examine the MICE method to impute missing values - MICE is an acronym for Multivariate Imputation by Chained Equations.  The associated function is mice(), found in the `mice` library, which was loaded earlier.  The author experimented with the following mice() function variables: `m` (number of multiple imputations), `method` (imputation method), and `maxit` (number of iterations), specifically the value ranges m={5,7,8}, method={fastpmm, pmm}, maxit={10,20,30,50,80,100}.
 
-Fit was evaluated with a densityplot, the author determined that the m=5, method=pmm, maxit=100 parameter values yielded suitable results.  That densityplot is shown below - the magenta plot denotes the imputed values - we observe that they cluster approximately around original, valid points (the blue line), with notable exceptions at very low values (see divergence at the left).
+Fit was evaluated with a densityplot, the author determined that the m=5, method=pmm, maxit=100 parameter values yielded suitable results.  That densityplot is included as a pdf in the /figure directory of this github listing.  On the plot, magenta denotes the imputed values - we observe that they cluster approximately around original, valid points (the blue line), with notable exceptions at very low values.
 
-The `date` and `interval` column data is unchanged by this operation - the author checks this assumption below.
-```{r imputation I, include=F}
-micedActivity <- mice(data = activity, m = 5, method = "pmm", maxit = 100, seed=2222)
+The `date` and `interval` column data is unchanged by this operation - the author checks this assumption below. 
+```{r imputation I, echo=TRUE}
+micedActivity <- mice(data = activity, m = 5, method = "pmm", maxit = 100, seed=2222, print=F)
 ```
-```{r imputation II, fig.align='center', fig.width=7, fig.height=5, echo=T}
-densityplot(micedActivity, ylim=c(0,.01), main="Density plot, imputed and original values")
+```{r imputation II, echo=T}
 newActivity <- complete(micedActivity, 1)  # extract the new dataframe
 # show that `date` and `interval` variables are unchanged from original dataset
 {if(sum(newActivity$date!=activity$date) == 0 ) cat("post-imputation:  date variable unaltered")
 if(sum(newActivity$interval!=activity$interval) == 0 ) cat("\t\tinterval variable unaltered")}
+```
+```{r imputation IIa, fig.align='center', fig.width=7, fig.height=5, include=F, echo=T}
+pdf(file="./figure/densityplot - Validation of imputed value fit.pdf", width=7, height=5)
+densityplot(micedActivity, ylim=c(0,.01), main="Density plot, imputed and original values")
+hst(); dev.off()  # pdf it
 ```
 #### Calculate statistics for imputed dataset
 ```{r imputation III, fig.align='center', fig.width=9, fig.height=5, echo=T}

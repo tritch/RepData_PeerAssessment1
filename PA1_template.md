@@ -5,7 +5,21 @@
 
 We begin by loading libraries, clearing the workspace, and unzipping the `activity.zip` dataset, which includes the comma-separated `activity.csv` file, which contains the raw dataset for this analysis.
 
+```r
+library(dplyr); library(mice); library(lattice); library(moments); library(lambda.tools)
+knitr::opts_chunk$set(cache=TRUE)
+# Set working directory (edit this path as desired), fetch data to it
+dataDirName <- "C:/Users/tom/Documents/DataScience/course 5/wk2/RepData_PeerAssessment1"
+setwd(dataDirName)  # make it working directory
+# skip the unzip if activity.csv already exists; otherwise, unzip it to current working directory
+if( !file.exists("./activity.csv") ) unzip("./activity.zip", overwrite = T, exdir = getwd())
+activity <- read.csv("activity.csv", header = T, sep = ",")
+```
 The activity dataset consists of 17568 observations across 3 variables.  We observe some missing values in the `steps` field, denoted as NAs in the summary below.  These will be discussed later in the report.  For now we will ignore the missing values.
+
+```r
+str(activity)
+```
 
 ```
 ## 'data.frame':	17568 obs. of  3 variables:
@@ -128,16 +142,13 @@ data.frame(`lower bound`=NAspan$min, `upper bound`=NAspan$max)
 
 The author chose not to use simpler methods for imputing missing values, such as substituting column means or medians.  Instead, we will examine the MICE method to impute missing values - MICE is an acronym for Multivariate Imputation by Chained Equations.  The associated function is mice(), found in the `mice` library, which was loaded earlier.  The author experimented with the following mice() function variables: `m` (number of multiple imputations), `method` (imputation method), and `maxit` (number of iterations), specifically the value ranges m={5,7,8}, method={fastpmm, pmm}, maxit={10,20,30,50,80,100}.
 
-Fit was evaluated with a densityplot, the author determined that the m=5, method=pmm, maxit=100 parameter values yielded suitable results.  That densityplot is shown below - the magenta plot denotes the imputed values - we observe that they cluster approximately around original, valid points (the blue line), with notable exceptions at very low values (see divergence at the left).
+Fit was evaluated with a densityplot, the author determined that the m=5, method=pmm, maxit=100 parameter values yielded suitable results.  That densityplot is included as a pdf in the /figure directory of this github listing.  On the plot, magenta denotes the imputed values - we observe that they cluster approximately around original, valid points (the blue line), with notable exceptions at very low values.
 
-The `date` and `interval` column data is unchanged by this operation - the author checks this assumption below.
-
+The `date` and `interval` column data is unchanged by this operation - the author checks this assumption below. 
 
 ```r
-densityplot(micedActivity, ylim=c(0,.01), main="Density plot, imputed and original values")
+micedActivity <- mice(data = activity, m = 5, method = "pmm", maxit = 100, seed=2222, print=F)
 ```
-
-<img src="PA1_template_files/figure-html/imputation II-1.png" style="display: block; margin: auto;" />
 
 ```r
 newActivity <- complete(micedActivity, 1)  # extract the new dataframe
@@ -149,6 +160,7 @@ if(sum(newActivity$interval!=activity$interval) == 0 ) cat("\t\tinterval variabl
 ```
 ## post-imputation:  date variable unaltered		interval variable unaltered
 ```
+
 #### Calculate statistics for imputed dataset
 
 ```r
